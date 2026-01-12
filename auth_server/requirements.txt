@@ -1,0 +1,9 @@
+fastapi
+prometheus-fastapi-instrumentator
+uvicorn
+sqlmodel
+mysql-connector-python
+cryptography
+PyJWT
+passlib[bcrypt]
+redis
