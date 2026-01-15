@@ -196,46 +196,24 @@ jobs:
 
           git pull --rebase --autostash origin "${TARGET_BRANCH}"
           
-          # 브랜치별 서비스 이름 매핑 (gitops의 파일명과 일치시키기)
-          # main 브랜치: workloads/k8s/{서비스}/template/deploy.yaml
-          # dev 브랜치: workloads/k8s/{서비스}.yaml
+          # 서비스명을 GitOps 디렉토리명으로 매핑
           case "$SERVICE_NAME" in
-            auth_server)
-              if [ "${TARGET_BRANCH}" = "main" ]; then
-                MANIFEST_FILE="workloads/k8s/auth/template/deploy.yaml"
-              else
-                MANIFEST_FILE="workloads/k8s/auth.yaml"
-              fi
-              ;;
-            employee_server)
-              if [ "${TARGET_BRANCH}" = "main" ]; then
-                MANIFEST_FILE="workloads/k8s/employee/template/deploy.yaml"
-              else
-                MANIFEST_FILE="workloads/k8s/employee.yaml"
-              fi
-              ;;
-            gateway)
-              if [ "${TARGET_BRANCH}" = "main" ]; then
-                MANIFEST_FILE="workloads/k8s/gateway/template/deploy.yaml"
-              else
-                MANIFEST_FILE="workloads/k8s/gateway.yaml"
-              fi
-              ;;
-            photo_service)
-              if [ "${TARGET_BRANCH}" = "main" ]; then
-                MANIFEST_FILE="workloads/k8s/photo/template/deploy.yaml"
-              else
-                MANIFEST_FILE="workloads/k8s/photo.yaml"
-              fi
-              ;;
-            frontend)
-              if [ "${TARGET_BRANCH}" = "main" ]; then
-                MANIFEST_FILE="workloads/k8s/nginx/template/deploy.yaml"
-              else
-                MANIFEST_FILE="workloads/k8s/nginx.yaml"
-              fi
-              ;;
+            auth_server) K8S_DIR="auth" ;;
+            employee_server) K8S_DIR="employee" ;;
+            gateway) K8S_DIR="gateway" ;;
+            photo_service) K8S_DIR="photo" ;;
+            frontend) K8S_DIR="nginx" ;;
+            *) echo "알 수 없는 서비스: $SERVICE_NAME" && exit 1 ;;
           esac
+          
+          # 브랜치별 매니페스트 파일 경로 설정
+          # main 브랜치: workloads/k8s/{디렉토리}/template/deploy.yaml
+          # dev 브랜치: workloads/k8s/{디렉토리}.yaml
+          if [ "${TARGET_BRANCH}" = "main" ]; then
+            MANIFEST_FILE="workloads/k8s/${K8S_DIR}/template/deploy.yaml"
+          else
+            MANIFEST_FILE="workloads/k8s/${K8S_DIR}.yaml"
+          fi
           
           if [ -f "$MANIFEST_FILE" ]; then
             sed -i "0,/^[[:space:]]*image:/s|^\([[:space:]]*image:[[:space:]]*\).*|\1${IMAGE_NAME}:${NEW_TAG}|" "$MANIFEST_FILE"
