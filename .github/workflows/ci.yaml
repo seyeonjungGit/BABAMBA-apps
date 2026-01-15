@@ -153,7 +153,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GH_PAT }}
       
       - name: 이미지 태그 생성(브랜치/SHA)
         id: meta
@@ -183,7 +183,7 @@ jobs:
           repository: ${{ github.repository_owner }}/BABAMBA-gitops
           ref: ${{ github.ref_name }}
           fetch-depth: 0
-          token: ${{ secrets.TOKEN_GIT }}
+          token: ${{ secrets.GH_PAT }}
           path: BABAMBA-gitops
 
       - name: GitOps 매니페스트 이미지 태그 갱신(dev/main 푸시 이벤트만)
