@@ -105,19 +105,21 @@ jobs:
 
       - name: 변경 감지 결과 요약 출력
         run: |
-          echo "## 변경 감지 결과" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- auth_server: **${{ steps.filter.outputs.auth_server }}**" >> "$GITHUB_STEP_SUMMARY"
-          echo "- employee_server: **${{ steps.filter.outputs.employee_server }}**" >> "$GITHUB_STEP_SUMMARY"
-          echo "- gateway: **${{ steps.filter.outputs.gateway }}**" >> "$GITHUB_STEP_SUMMARY"
-          echo "- photo_service: **${{ steps.filter.outputs.photo_service }}**" >> "$GITHUB_STEP_SUMMARY"
-          echo "- frontend: **${{ steps.filter.outputs.frontend }}**" >> "$GITHUB_STEP_SUMMARY"
-          echo "- workflows(ci): **${{ steps.filter.outputs.ci }}**" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "## 최종 빌드 대상 서비스" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- services: \`${{ steps.set-matrix.outputs.services }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- should_build: **${{ steps.set-matrix.outputs.should_build }}**" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## 변경 감지 결과"
+            echo ""
+            echo "- auth_server: **${{ steps.filter.outputs.auth_server }}**"
+            echo "- employee_server: **${{ steps.filter.outputs.employee_server }}**"
+            echo "- gateway: **${{ steps.filter.outputs.gateway }}**"
+            echo "- photo_service: **${{ steps.filter.outputs.photo_service }}**"
+            echo "- frontend: **${{ steps.filter.outputs.frontend }}**"
+            echo "- workflows(ci): **${{ steps.filter.outputs.ci }}**"
+            echo ""
+            echo "## 최종 빌드 대상 서비스"
+            echo ""
+            echo "- services: \`${{ steps.set-matrix.outputs.services }}\`"
+            echo "- should_build: **${{ steps.set-matrix.outputs.should_build }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   workflow-lint:
     name: 워크플로우 린트(변경 시)
@@ -145,7 +147,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Docker 빌드 환경 설정(Buildx)
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       
       - name: GHCR 로그인(푸시 이벤트만)
         if: github.event_name == 'push'
@@ -157,7 +159,7 @@ jobs:
       
       - name: 이미지 태그 생성(브랜치/SHA)
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}
           tags: |
@@ -166,7 +168,7 @@ jobs:
             type=sha,prefix=sha-,format=short
       
       - name: 이미지 빌드 및 푸시(푸시 이벤트만)
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: . # 현재 디렉토리(저장소 루트)
           file: ./${{ matrix.service }}/Dockerfile 
