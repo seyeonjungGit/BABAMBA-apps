@@ -1,12 +1,14 @@
-name: CI 파이프라인 (Main) - 변경된 서비스만 빌드/푸시 + GitOps 태그 갱신
+name: CI 파이프라인 (변경된 서비스만 빌드/푸시 + GitOps 태그 갱신)
 
 on:
   push:
     branches:
       - main
+      - dev
   pull_request:
     branches:
       - main
+      - dev
   workflow_dispatch:
     inputs:
       full_build:
@@ -171,44 +173,67 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
-      - name: GitOps 저장소 체크아웃(main 푸시 이벤트만)
-        if: github.event_name == 'push'
+      - name: GitOps 저장소 체크아웃(dev/main 푸시 이벤트만)
+        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/BABAMBA-gitops
-          ref: main
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
           token: ${{ secrets.GH_PAT }}
           path: BABAMBA-gitops
 
-      - name: GitOps 매니페스트 이미지 태그 갱신(main 푸시 이벤트만)
-        if: github.event_name == 'push'
+      - name: GitOps 매니페스트 이미지 태그 갱신(dev/main 푸시 이벤트만)
+        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')
         env:
           SERVICE_NAME: ${{ matrix.service }}
         run: |
           cd BABAMBA-gitops
           
+          TARGET_BRANCH="${GITHUB_REF_NAME}"
           NEW_TAG="sha-${GITHUB_SHA::7}"
           IMAGE_NAME="${REGISTRY}/${IMAGE_NAMESPACE}/${SERVICE_NAME}"
 
-          git pull --rebase --autostash origin main
+          git pull --rebase --autostash origin "${TARGET_BRANCH}"
           
-          # main 브랜치 서비스 매핑
+          # 브랜치별 서비스 이름 매핑 (gitops의 파일명과 일치시키기)
+          # main 브랜치: workloads/k8s/{서비스}/template/deploy.yaml
+          # dev 브랜치: workloads/k8s/{서비스}.yaml
           case "$SERVICE_NAME" in
             auth_server)
-              MANIFEST_FILE="workloads/k8s/auth/template/deploy.yaml"
+              if [ "${TARGET_BRANCH}" = "main" ]; then
+                MANIFEST_FILE="workloads/k8s/auth/template/deploy.yaml"
+              else
+                MANIFEST_FILE="workloads/k8s/auth.yaml"
+              fi
               ;;
             employee_server)
-              MANIFEST_FILE="workloads/k8s/employee/template/deploy.yaml"
+              if [ "${TARGET_BRANCH}" = "main" ]; then
+                MANIFEST_FILE="workloads/k8s/employee/template/deploy.yaml"
+              else
+                MANIFEST_FILE="workloads/k8s/employee.yaml"
+              fi
               ;;
             gateway)
-              MANIFEST_FILE="workloads/k8s/gateway/template/deploy.yaml"
+              if [ "${TARGET_BRANCH}" = "main" ]; then
+                MANIFEST_FILE="workloads/k8s/gateway/template/deploy.yaml"
+              else
+                MANIFEST_FILE="workloads/k8s/gateway.yaml"
+              fi
               ;;
             photo_service)
-              MANIFEST_FILE="workloads/k8s/photo/template/deploy.yaml"
+              if [ "${TARGET_BRANCH}" = "main" ]; then
+                MANIFEST_FILE="workloads/k8s/photo/template/deploy.yaml"
+              else
+                MANIFEST_FILE="workloads/k8s/photo.yaml"
+              fi
               ;;
             frontend)
-              MANIFEST_FILE="workloads/k8s/nginx/template/deploy.yaml"
+              if [ "${TARGET_BRANCH}" = "main" ]; then
+                MANIFEST_FILE="workloads/k8s/nginx/template/deploy.yaml"
+              else
+                MANIFEST_FILE="workloads/k8s/nginx.yaml"
+              fi
               ;;
           esac
           
@@ -218,6 +243,6 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add "$MANIFEST_FILE"
-            git commit -m "배포(main): ${SERVICE_NAME} 이미지 태그를 ${NEW_TAG}으로 갱신" || exit 0
-            git push origin main
+            git commit -m "배포(${TARGET_BRANCH}): ${SERVICE_NAME} 이미지 태그를 ${NEW_TAG}으로 갱신" || exit 0
+            git push origin "${TARGET_BRANCH}"
           fi
