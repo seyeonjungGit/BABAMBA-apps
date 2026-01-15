@@ -12,5 +12,5 @@ RUN apt-get update && apt-get install -y iproute2 && rm -rf /var/lib/apt/lists/*
 # 소스 코드 복사
 COPY photo_service /app
 
-# Uvicorn 서버 실행
+# Uvicorn 서버 실행 # 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5003"]
