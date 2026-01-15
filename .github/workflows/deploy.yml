@@ -31,8 +31,8 @@ jobs:
       - name: Build and Push Docker image
         uses: docker/build-push-action@v4
         with:
-          # 각 서비스 폴더를 빌드 컨텍스트로 지정
-          context: ./${{ matrix.service }}
+          # 레포지토리 루트로 설정
+          context: .
           # Dockerfile 위치 지정
           file: ./${{ matrix.service }}/Dockerfile
           push: true
