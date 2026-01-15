@@ -14,10 +14,11 @@ RUN apt-get update && apt-get install -y iproute2 && rm -rf /var/lib/apt/lists/*
 COPY common /app/common
 
 # 2. auth_server 내부의 소스 코드 복사
-COPY auth_server /app
+COPY auth_server /app/auth_server
 
 # 3. 파이썬이 /app 폴더를 루트로 인식하게 하여 'import common'이 가능하게 함
 ENV PYTHONPATH=/app
+WORKDIR /app/auth_server
 
 # Uvicorn 서버 실행 (포트는 5001 유지)
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5001"]
