@@ -3,8 +3,8 @@ FROM nginx:latest
 # 기존 설정 파일 삭제 (혹시 모를 충돌 방지)
 RUN rm /etc/nginx/conf.d/default.conf
 
-# 소스 복사
-COPY frontend/. /var/www/frontend/
+COPY frontend/ /var/www/frontend/
+
 
 # 우리 설정 복사
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf

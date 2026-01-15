@@ -9,11 +9,8 @@ COPY photo_service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN apt-get update && apt-get install -y iproute2 && rm -rf /var/lib/apt/lists/*
 
-# 소스 코드 복사
-COPY photo_service /app/photo_service
+COPY photo_service /app
 
-ENV PYTHONPATH=/app
-WORKDIR /app/photo_service
 
-# Uvicorn 서버 실행
+# Uvicorn 서버 실행 # 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5003"]

@@ -10,10 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN apt-get update && apt-get install -y iproute2 && rm -rf /var/lib/apt/lists/*
 
 # 소스 코드 복사
-COPY gateway /app/gateway
+COPY gateway /app
 
-ENV PYTHONPATH=/app
-WORKDIR /app/gateway
 
 # Uvicorn 서버 실행
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
