@@ -7,7 +7,7 @@ on:
 env:
   REGISTRY: ghcr.io
   # GitHub 아이디를 소문자로 변환하여 사용해야 함
-  IMAGE_NAME: ${{ github.repository_owner }}
+  IMAGE_NAME: LargeSsun
 
 jobs:
   build-and-push:
