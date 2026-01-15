@@ -1,4 +1,4 @@
-import os # 운영체제 기능(파일 경로 등)을 위한 모듈
+import os # 운영체제 기능(파일 경로 등)을 위한 모듈 ###
 import jwt # JWT(JSON Web Token) 처리를 위한 라이브러리 (PyJWT)
 import time # 시간 측정을 위한 모듈
 import json

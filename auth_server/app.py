@@ -10,7 +10,7 @@ from fastapi.security import OAuth2PasswordBearer
 from common.database import get_user_by_username, add_user
 from common.models import User
 from common.redis_config import get_session_redis
-# 1. 비밀번호 암호화 도구 설정 (bcrypt 알고리즘 사용)
+# 1. 비밀번호 암호화 도구 설정 (bcrypt 알고리즘 사용) ### 
 #pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 app = FastAPI()
 # 
