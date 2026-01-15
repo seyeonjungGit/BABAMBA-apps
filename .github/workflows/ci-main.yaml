@@ -1,14 +1,12 @@
-name: CI 파이프라인 (변경된 서비스만 빌드/푸시 + GitOps 태그 갱신)
+name: CI 파이프라인 (Main) - 변경된 서비스만 빌드/푸시 + GitOps 태그 갱신
 
 on:
   push:
     branches:
       - main
-      - dev
   pull_request:
     branches:
       - main
-      - dev
   workflow_dispatch:
     inputs:
       full_build:
@@ -39,16 +37,13 @@ jobs:
     steps:
       - name: 소스 체크아웃
         uses: actions/checkout@v4
-        with:  # 히스토리 전체 받기. 
+        with:
           fetch-depth: 0
 
       - name: 변경 파일 경로 감지
         id: filter
         uses: dorny/paths-filter@v3
         with:
-          # push 이벤트일 때는 “이번 push에서 바뀐 범위(github.event.before..github.sha)”만 비교
-          # PR 이벤트일 때는 “PR의 base 커밋 ↔ head 커밋”을 비교
-          # schedule/workflow_dispatch: 기본 브랜치 기준(참고용; 실제 빌드 대상은 FULL_BUILD로 결정)
           base: >-
             ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha ||
                 github.event_name == 'push' && github.event.before ||
@@ -86,7 +81,6 @@ jobs:
             const services = [];
             const add = (name, cond) => { if (cond === 'true') services.push(name); };
 
-            // 스케줄/수동(full_build=true)일 때만 전체 빌드
             if (process.env.FULL_BUILD === 'true') {
               services.push('auth_server','employee_server','gateway','photo_service','frontend');
             } else {
@@ -163,73 +157,67 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}
           tags: |
-            type=ref,event=branch    
-            # PR 등 일부 이벤트에서는 {{branch}}가 비어 "-<sha>"가 될 수 있어, 항상 안전한 접두어 사용
+            type=ref,event=branch
             type=sha,prefix=sha-,format=short
       
       - name: 이미지 빌드 및 푸시(푸시 이벤트만)
         uses: docker/build-push-action@v6
         with:
-          context: . # 현재 디렉토리(저장소 루트)
-          file: ./${{ matrix.service }}/Dockerfile 
+          context: .
+          file: ./${{ matrix.service }}/Dockerfile
           push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
-      - name: GitOps 저장소 체크아웃(dev/main 푸시 이벤트만)
-        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')
+      - name: GitOps 저장소 체크아웃(main 푸시 이벤트만)
+        if: github.event_name == 'push'
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/BABAMBA-gitops
-          ref: ${{ github.ref_name }}
+          ref: main
           fetch-depth: 0
           token: ${{ secrets.GH_PAT }}
           path: BABAMBA-gitops
 
-      - name: GitOps 매니페스트 이미지 태그 갱신(dev/main 푸시 이벤트만)
-        if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')
+      - name: GitOps 매니페스트 이미지 태그 갱신(main 푸시 이벤트만)
+        if: github.event_name == 'push'
         env:
           SERVICE_NAME: ${{ matrix.service }}
         run: |
           cd BABAMBA-gitops
           
-          TARGET_BRANCH="${GITHUB_REF_NAME}"
           NEW_TAG="sha-${GITHUB_SHA::7}"
           IMAGE_NAME="${REGISTRY}/${IMAGE_NAMESPACE}/${SERVICE_NAME}"
 
-          # 리모트 최신 상태를 먼저 가져온 뒤(필요 시 autostash) 매니페스트를 수정해야 rebase가 막히지 않음
-          git pull --rebase --autostash origin "${TARGET_BRANCH}"
+          git pull --rebase --autostash origin main
           
-          # 서비스 이름 매핑 (gitops의 파일명과 일치시키기)
+          # main 브랜치 서비스 매핑
           case "$SERVICE_NAME" in
             auth_server)
-              MANIFEST_FILE="workloads/k8s/auth.yaml"
+              MANIFEST_FILE="workloads/k8s/auth/template/deploy.yaml"
               ;;
             employee_server)
-              MANIFEST_FILE="workloads/k8s/employee.yaml"
+              MANIFEST_FILE="workloads/k8s/employee/template/deploy.yaml"
               ;;
             gateway)
-              MANIFEST_FILE="workloads/k8s/gateway.yaml"
+              MANIFEST_FILE="workloads/k8s/gateway/template/deploy.yaml"
               ;;
             photo_service)
-              MANIFEST_FILE="workloads/k8s/photo.yaml"
+              MANIFEST_FILE="workloads/k8s/photo/template/deploy.yaml"
               ;;
             frontend)
-              MANIFEST_FILE="workloads/k8s/nginx.yaml"
+              MANIFEST_FILE="workloads/k8s/nginx/template/deploy.yaml"
               ;;
           esac
           
-          # 매니페스트 파일의 이미지 태그 업데이트
           if [ -f "$MANIFEST_FILE" ]; then
-            # 첫 번째 image: 라인만 교체 (기존 레지스트리/계정명과 무관하게 안전하게 업데이트)
             sed -i "0,/^[[:space:]]*image:/s|^\([[:space:]]*image:[[:space:]]*\).*|\1${IMAGE_NAME}:${NEW_TAG}|" "$MANIFEST_FILE"
             
-            # 변경사항 커밋 및 푸시
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add "$MANIFEST_FILE"
-            git commit -m "배포(${TARGET_BRANCH}): ${SERVICE_NAME} 이미지 태그를 ${NEW_TAG}으로 갱신" || exit 0
-            git push origin "${TARGET_BRANCH}"
+            git commit -m "배포(main): ${SERVICE_NAME} 이미지 태그를 ${NEW_TAG}으로 갱신" || exit 0
+            git push origin main
           fi
