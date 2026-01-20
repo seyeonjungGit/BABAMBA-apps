@@ -17,6 +17,8 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD") or "kosa1004"
 
 REDIS_CACHE_HOST = os.getenv("REDIS_CACHE_HOST") or "redis-cache-service"
 REDIS_CACHE_PORT = get_env_port("REDIS_CACHE_PORT", 6379)
+# 환경변수에 따라 캐시 사용 여부 결정
+USE_REDIS_CACHE = os.getenv("USE_REDIS_CACHE", "true").lower() == "true"
 
 # [3] 세션용 Redis (Sentinel 방식)
 def get_session_redis():
@@ -35,6 +37,8 @@ def get_session_redis():
 
 # [4] 캐시용 Redis (단독 방식)
 def get_cache_redis():
+    if not USE_REDIS_CACHE:
+        return None
     return redis.Redis(
         host=REDIS_CACHE_HOST, 
         port=REDIS_CACHE_PORT,
