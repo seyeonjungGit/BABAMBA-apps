@@ -1,7 +1,7 @@
 from typing import List, Optional
 from sqlmodel import SQLModel, create_engine, Session, select
 from sqlalchemy.pool import QueuePool
-from common import config
+import common.config as config
 from common.models import Employee, User
 
 # Database URL
