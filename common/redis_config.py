@@ -13,6 +13,7 @@ def get_env_port(name, default):
 REDIS_SENTINEL_HOST = os.getenv("REDIS_SENTINEL_HOST") or "redis-sentinel-service"
 REDIS_SENTINEL_PORT = get_env_port("REDIS_SENTINEL_PORT", 26379)
 REDIS_MASTER_NAME = os.getenv("REDIS_MASTER_NAME") or "mymaster"
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD") or "kosa1004"
 
 REDIS_CACHE_HOST = os.getenv("REDIS_CACHE_HOST") or "redis-cache-service"
 REDIS_CACHE_PORT = get_env_port("REDIS_CACHE_PORT", 6379)
@@ -22,12 +23,14 @@ def get_session_redis():
     # 상단에서 정의한 안전한 전역 변수를 사용합니다.
     sentinel = Sentinel(
         [(REDIS_SENTINEL_HOST, REDIS_SENTINEL_PORT)], 
-        socket_timeout=0.5
+        socket_timeout=0.5,
+        password=REDIS_PASSWORD
     )
     return sentinel.master_for(
         REDIS_MASTER_NAME, 
         socket_timeout=0.5, 
-        decode_responses=True
+        decode_responses=True,
+        password=REDIS_PASSWORD
     )
 
 # [4] 캐시용 Redis (단독 방식)
