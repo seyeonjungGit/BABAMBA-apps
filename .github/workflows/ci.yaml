@@ -207,12 +207,12 @@ jobs:
           esac
           
           # 브랜치별 매니페스트 파일 경로 설정
-          # main 브랜치: workloads/k8s/{디렉토리}/template/deploy.yaml
-          # dev 브랜치: workloads/k8s/{디렉토리}.yaml
+          # main 브랜치: clusters/onprem/dev/apps/{디렉토리}/values.yaml"
+          # dev 브랜치: clusters/onprem/dev/apps/{디렉토리}.values.yaml"
           if [ "${TARGET_BRANCH}" = "main" ]; then
-            MANIFEST_FILE="workloads/k8s/${K8S_DIR}/template/deployment.yaml"
+            MANIFEST_FILE="clusters/onprem/prod/apps/${K8S_DIR}/values.yaml"
           else
-            MANIFEST_FILE="workloads/k8s/${K8S_DIR}/template/deployment.yaml"
+            MANIFEST_FILE="clusters/onprem/dev/apps/${K8S_DIR}/values.yaml"
           fi
           
           if [ -f "$MANIFEST_FILE" ]; then
