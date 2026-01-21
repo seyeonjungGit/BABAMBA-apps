@@ -210,9 +210,9 @@ jobs:
           # main 브랜치: workloads/k8s/{디렉토리}/template/deploy.yaml
           # dev 브랜치: workloads/k8s/{디렉토리}.yaml
           if [ "${TARGET_BRANCH}" = "main" ]; then
-            MANIFEST_FILE="workloads/k8s/${K8S_DIR}/template/deploy.yaml"
+            MANIFEST_FILE="workloads/k8s/${K8S_DIR}/template/deployment.yaml"
           else
-            MANIFEST_FILE="workloads/k8s/${K8S_DIR}.yaml"
+            MANIFEST_FILE="workloads/k8s/${K8S_DIR}/template/deployment.yaml"
           fi
           
           if [ -f "$MANIFEST_FILE" ]; then
