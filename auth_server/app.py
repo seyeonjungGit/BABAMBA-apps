@@ -100,7 +100,7 @@ async def logout(token: str = Depends(oauth2_scheme)):
         r_session = get_session_redis()
         r_session.delete(f"session:{user_id}")
         
-        return {"message": "로그아웃 성공!"}
+        return {"message": "로그아웃 성공!!"}
         
     except jwt.ExpiredSignatureError:
         # 이미 만료된 토큰이라도 로그아웃 요청이 들어오면 성공으로 쳐주거나 무시해도 됩니다.
