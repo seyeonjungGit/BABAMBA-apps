@@ -14,7 +14,7 @@ DATABASE_URL = (
 # Create the engine with connection pooling
 # pool_size: The number of connections to keep open in the pool.
 # max_overflow: The number of connections that can be opened beyond the pool_size.
-# pool_recycle: Recycle connections after this many seconds. Prevents stale connections.
+# pool_recycle: Recycle connections after this many seconds. Prevents stale connections.#
 engine = create_engine(
     DATABASE_URL,
     echo=False, # Set to True to see SQL statements
