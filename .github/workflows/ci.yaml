@@ -207,10 +207,10 @@ jobs:
           esac
           
           # 브랜치별 매니페스트 파일 경로 설정
-          # main 브랜치: clusters/onprem/dev/apps/{디렉토리}/values.yaml"
+          # main 브랜치: clusters/onprem/prod/apps/{디렉토리}/values.yaml"
           # dev 브랜치: clusters/onprem/dev/apps/{디렉토리}/values.yaml"
           if [ "${TARGET_BRANCH}" = "main" ]; then
-            MANIFEST_FILE="clusters/onprem/prod/apps/${K8S_DIR}/values.yaml"
+            MANIFEST_FILE="clusters/onprem/dev/apps/${K8S_DIR}/values.yaml"  # 일단 임시로 main브랜치 push할때 ops dev폴더로 태그변경.
           else
             MANIFEST_FILE="clusters/onprem/dev/apps/${K8S_DIR}/values.yaml"
           fi
