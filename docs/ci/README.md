@@ -58,12 +58,12 @@
 
 ## 5) GitOps 매니페스트 갱신 대상
 
-서비스별 대상 파일(첫 번째 `image:` 라인 교체):
-- `auth_server` → `workloads/k8s/auth.yaml`
-- `employee_server` → `workloads/k8s/employee.yaml`
-- `gateway` → `workloads/k8s/gateway.yaml`
-- `photo_service` → `workloads/k8s/photo.yaml`
-- `frontend` → `workloads/k8s/nginx.yaml`
+서비스별 대상 파일(Helm `values.yaml`의 `image.tag` 갱신):
+- `auth_server` → `clusters/onprem/<dev|prod>/apps/auth/values.yaml`
+- `employee_server` → `clusters/onprem/<dev|prod>/apps/employee/values.yaml`
+- `gateway` → `clusters/onprem/<dev|prod>/apps/gateway/values.yaml`
+- `photo_service` → `clusters/onprem/<dev|prod>/apps/photo/values.yaml`
+- `frontend` → `clusters/onprem/<dev|prod>/apps/nginx/values.yaml`
 
 ---
 

@@ -4,7 +4,7 @@ from sqlalchemy.pool import QueuePool
 import common.config as config
 from common.models import Employee, User
 
-# Database URL
+# Database URL#
 DATABASE_URL = (
     f"mysql+mysqlconnector://{config.DATABASE_USER}:{config.DATABASE_PASSWORD}@"
     f"{config.DATABASE_HOST}:{config.DATABASE_PORT}/"
@@ -14,7 +14,7 @@ DATABASE_URL = (
 # Create the engine with connection pooling
 # pool_size: The number of connections to keep open in the pool.
 # max_overflow: The number of connections that can be opened beyond the pool_size.
-# pool_recycle: Recycle connections after this many seconds. Prevents stale connections.
+# pool_recycle: Recycle connections after this many seconds. Prevents stale connections.#
 engine = create_engine(
     DATABASE_URL,
     echo=False, # Set to True to see SQL statements

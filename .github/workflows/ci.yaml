@@ -192,7 +192,6 @@ jobs:
           
           TARGET_BRANCH="${GITHUB_REF_NAME}"
           NEW_TAG="sha-${GITHUB_SHA::7}"
-          IMAGE_NAME="${REGISTRY}/${IMAGE_NAMESPACE}/${SERVICE_NAME}"
 
           git pull --rebase --autostash origin "${TARGET_BRANCH}"
           
@@ -207,16 +206,22 @@ jobs:
           esac
           
           # 브랜치별 매니페스트 파일 경로 설정
-          # main 브랜치: clusters/onprem/dev/apps/{디렉토리}/values.yaml"
-          # dev 브랜치: clusters/onprem/dev/apps/{디렉토리}.values.yaml"
+          # main 브랜치: clusters/onprem/prod/apps/{디렉토리}/values.yaml"
+          # dev 브랜치: clusters/onprem/dev/apps/{디렉토리}/values.yaml"
           if [ "${TARGET_BRANCH}" = "main" ]; then
-            MANIFEST_FILE="clusters/onprem/prod/apps/${K8S_DIR}/values.yaml"
+            MANIFEST_FILE="clusters/onprem/dev/apps/${K8S_DIR}/values.yaml"  # 일단 임시로 main브랜치 push할때 ops dev폴더로 태그변경.
+
           else
             MANIFEST_FILE="clusters/onprem/dev/apps/${K8S_DIR}/values.yaml"
           fi
           
           if [ -f "$MANIFEST_FILE" ]; then
-            sed -i "0,/^[[:space:]]*image:/s|^\([[:space:]]*image:[[:space:]]*\).*|\1${IMAGE_NAME}:${NEW_TAG}|" "$MANIFEST_FILE"
+            # Helm values.yaml 형식:
+            # image:
+            #   repository: ghcr.io/<owner>/<service>
+            #   tag: "sha-xxxxxxx"
+            # → image 블록 안의 tag 값만 갱신
+            sed -i "/^[[:space:]]*image:[[:space:]]*$/,/^[^[:space:]]/ s|^\\([[:space:]]*tag:[[:space:]]*\\).*|\\1\\\"${NEW_TAG}\\\"|" "$MANIFEST_FILE"
             
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
