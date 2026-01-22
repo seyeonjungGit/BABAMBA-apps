@@ -211,6 +211,7 @@ jobs:
           # dev 브랜치: clusters/onprem/dev/apps/{디렉토리}/values.yaml"
           if [ "${TARGET_BRANCH}" = "main" ]; then
             MANIFEST_FILE="clusters/onprem/dev/apps/${K8S_DIR}/values.yaml"  # 일단 임시로 main브랜치 push할때 ops dev폴더로 태그변경.
+
           else
             MANIFEST_FILE="clusters/onprem/dev/apps/${K8S_DIR}/values.yaml"
           fi
