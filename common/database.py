@@ -4,7 +4,7 @@ from sqlalchemy.pool import QueuePool
 import common.config as config
 from common.models import Employee, User
 
-# Database URL
+# Database URL#
 DATABASE_URL = (
     f"mysql+mysqlconnector://{config.DATABASE_USER}:{config.DATABASE_PASSWORD}@"
     f"{config.DATABASE_HOST}:{config.DATABASE_PORT}/"

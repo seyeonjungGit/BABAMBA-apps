@@ -9,7 +9,7 @@ COPY employee_server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN apt-get update && apt-get install -y iproute2 && rm -rf /var/lib/apt/lists/*
 
-# 1. 공통 폴더 복사 (컨테이너 내부 /app/common 위치에 저장됨)
+# 1. 공통 폴더 복사 (컨테이너 내부 /app/common 위치에 저장됨)#
 COPY common /app/common
 
 # 2. employee_server 내부의 소스 코드 복사

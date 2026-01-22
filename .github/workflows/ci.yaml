@@ -192,7 +192,6 @@ jobs:
           
           TARGET_BRANCH="${GITHUB_REF_NAME}"
           NEW_TAG="sha-${GITHUB_SHA::7}"
-          IMAGE_NAME="${REGISTRY}/${IMAGE_NAMESPACE}/${SERVICE_NAME}"
 
           git pull --rebase --autostash origin "${TARGET_BRANCH}"
           
