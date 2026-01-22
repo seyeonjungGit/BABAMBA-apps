@@ -216,7 +216,12 @@ jobs:
           fi
           
           if [ -f "$MANIFEST_FILE" ]; then
-            sed -i "0,/^[[:space:]]*image:/s|^\([[:space:]]*image:[[:space:]]*\).*|\1${IMAGE_NAME}:${NEW_TAG}|" "$MANIFEST_FILE"
+            # Helm values.yaml 형식:
+            # image:
+            #   repository: ghcr.io/<owner>/<service>
+            #   tag: "sha-xxxxxxx"
+            # → image 블록 안의 tag 값만 갱신
+            sed -i "/^[[:space:]]*image:[[:space:]]*$/,/^[^[:space:]]/ s|^\\([[:space:]]*tag:[[:space:]]*\\).*|\\1\\\"${NEW_TAG}\\\"|" "$MANIFEST_FILE"
             
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
