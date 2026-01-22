@@ -1,6 +1,6 @@
 import os
 
-# Flask / JWT
+# Flask / JWT# 
 FLASK_SECRET = os.environ.get("FLASK_SECRET", "dev-secret")
 JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret")
 
