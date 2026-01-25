@@ -17,9 +17,13 @@ app = FastAPI()
 # Set up Prometheus instrumentation
 Instrumentator().instrument(app).expose(app)
 
+origins = [
+    "https://yxngjxe.store/"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
