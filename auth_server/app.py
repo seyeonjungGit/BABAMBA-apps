@@ -18,7 +18,8 @@ app = FastAPI()
 Instrumentator().instrument(app).expose(app)
 
 origins = [
-    "https://yxngjxe.store/"
+    "https://yxngjxe.store",
+    "https://ehanadul.store"
 ]
 
 app.add_middleware(
