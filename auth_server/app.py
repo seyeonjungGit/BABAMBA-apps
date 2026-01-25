@@ -19,7 +19,8 @@ Instrumentator().instrument(app).expose(app)
 
 origins = [
     "https://yxngjxe.store",
-    "https://ehanadul.store"
+    "https://ehanadul.store",
+    "https://yongun.shop"
 ]
 
 app.add_middleware(
