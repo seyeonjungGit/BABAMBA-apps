@@ -7,7 +7,7 @@ JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret")
 # Photo service
 PHOTO_SERVICE_URL = os.environ.get(
     "PHOTO_SERVICE_URL",
-    "http://photo-service:5003"
+    "http://photo-service-active.photo:5003"
 )
 
 # Database 
