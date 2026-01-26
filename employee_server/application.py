@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
 from prometheus_fastapi_instrumentator import Instrumentator
 import httpx
+from io import BytesIO
 
 from common import config
 from common import database
