@@ -159,8 +159,9 @@ async def save_employee(
     user_list_cache = f"employees_list_cache:{user_id}"
 
     key = None
-    if photo and photo.filename != '':
-        image_bytes = util.resize_image(photo.file, (120, 160))
+    if photo and photo.filename:
+        photo_bytes = await photo.read()
+        image_bytes = util.resize_image(BytesIO(photo_bytes), (120, 160))
         if image_bytes:
             try:
                 files = {'file': (photo.filename, image_bytes, photo.content_type)}
