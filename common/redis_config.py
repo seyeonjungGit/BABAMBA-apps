@@ -10,7 +10,7 @@ def get_env_port(name, default):
     return int(val)
 
 # [2] 전역 변수 설정 (기본값 확실히 지정)
-REDIS_SENTINEL_HOST = os.getenv("REDIS_SENTINEL_HOST") or "redis-sentinel-service"
+REDIS_SENTINEL_HOSTS = os.getenv("REDIS_SENTINEL_HOST") or "redis-sentinel-service"
 REDIS_SENTINEL_PORT = get_env_port("REDIS_SENTINEL_PORT", 26379)
 REDIS_MASTER_NAME = os.getenv("REDIS_MASTER_NAME") or "mymaster"
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD") or "kosa1004"
@@ -22,12 +22,19 @@ USE_REDIS_CACHE = os.getenv("USE_REDIS_CACHE", "true").lower() == "true"
 
 # [3] 세션용 Redis (Sentinel 방식)
 def get_session_redis():
-    # 상단에서 정의한 안전한 전역 변수를 사용합니다.
+    # 1. 쉼표로 구분된 문자열을 리스트로 쪼갭니다.
+    host_list = REDIS_SENTINEL_HOSTS.split(",")
+    
+    # 2. Sentinel이 인식할 수 있는 [(ip, port), (ip, port)...] 형식으로 변환합니다.
+    sentinels = [(host.strip(), REDIS_SENTINEL_PORT) for host in host_list]
+    
+    # 3. 변환된 리스트를 넣어줍니다.
     sentinel = Sentinel(
-        [(REDIS_SENTINEL_HOST, REDIS_SENTINEL_PORT)], 
+        sentinels,  # <--- 여기가 포인트!
         socket_timeout=0.5,
         password=REDIS_PASSWORD
     )
+    
     return sentinel.master_for(
         REDIS_MASTER_NAME, 
         socket_timeout=0.5, 
