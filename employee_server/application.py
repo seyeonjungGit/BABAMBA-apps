@@ -45,30 +45,44 @@ async def shutdown_event():
 async def on_startup():
     database.create_db_and_tables()
 
-# [인증] 세션 Redis는 부하테스트 시에도 필수이므로 계속 사용
+# [인증] JWT는 필수, Redis 세션은 옵션
 async def get_current_user_info(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
     try:
+        # 1️⃣ JWT 검증 (절대 기준)
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("user")
         user_id: int = payload.get("id")
 
-        # 세션용 Redis (Sentinel) 연결
-        r_session = get_session_redis() 
-        if not r_session.exists(f"session:{user_id}"):
-            raise HTTPException(status_code=401, detail="로그아웃된 세션입니다.")
-
         if username is None or user_id is None:
             raise credentials_exception
-            
+
+        # 2️⃣ Redis 세션 체크 (Best Effort)
+        try:
+            r_session = get_session_redis()
+            if not r_session.exists(f"session:{user_id}"):
+                # 로그만 남기고 통과
+                print(f"[WARN] Redis session missing for user_id={user_id}")
+        except Exception as e:
+            # Sentinel 장애 / 네트워크 문제
+            print(f"[WARN] Redis session check failed: {e}")
+
+        # 3️⃣ 정상 통과
         return {"username": username, "id": user_id}
-        
-    except (jwt.ExpiredSignatureError, jwt.PyJWTError):
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="토큰이 만료되었습니다.",
+        )
+    except jwt.PyJWTError:
         raise credentials_exception
+
 
 def get_photo_url_for_fastapi(object_key: str):
     return f"/static/uploads/{object_key}"

@@ -77,7 +77,6 @@ async def login(req: LoginRequest):
     if not user or req.password != user.password:
         raise HTTPException(status_code=401, detail="인증 실패")
 
-    # 1. JWT 토큰 발행
     payload = {
         'user': user.username,
         'id': user.id,
@@ -85,32 +84,40 @@ async def login(req: LoginRequest):
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
-    # 2. Redis(Sentinel)에 세션 저장
-    r_session = get_session_redis()
-    # 유저 ID를 키로 저장 (토큰 유효기간과 동일하게 1시간 설정)
-    r_session.setex(f"session:{user.id}", 3600, "active") 
+    # Redis 세션은 "옵션"
+    try:
+        r_session = get_session_redis()
+        r_session.setex(f"session:{user.id}", 3600, "active")
+    except Exception as e:
+        # ❗ Redis 없거나 장애 → 로그만
+        print(f"[WARN] Redis session not available: {e}")
 
     return {'token': token}
+
 
 @app.post('/auth/logout')
 async def logout(token: str = Depends(oauth2_scheme)):
     try:
-        # 1. 토큰 해독 (Auth Server의 SECRET_KEY 사용)
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         user_id = payload.get("id")
-        
+
         if user_id is None:
             raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
 
-        # 2. Redis(Sentinel)에서 세션 삭제
-        r_session = get_session_redis()
-        r_session.delete(f"session:{user_id}")
-        
-        return {"message": "로그아웃 성공!!"}
-        
+        # Redis 세션 삭제도 옵션
+        try:
+            r_session = get_session_redis()
+            deleted = r_session.delete(f"session:{user_id}")
+            if deleted == 0:
+                print(f"[INFO] Redis session not found for user_id={user_id}")
+        except Exception as e:
+            print(f"[WARN] Redis session unavailable during logout: {e}")
+
+        return {"message": "로그아웃 성공"}
+
     except jwt.ExpiredSignatureError:
-        # 이미 만료된 토큰이라도 로그아웃 요청이 들어오면 성공으로 쳐주거나 무시해도 됩니다.
-        return {"message": "이미 만료된 세션입니다."}
-    except (jwt.PyJWTError, Exception) as e:
-        print(f"Logout Error: {e}")
+        return {"message": "이미 만료된 토큰입니다."}
+    except jwt.PyJWTError as e:
+        print(f"[ERROR] Logout JWT error: {e}")
         raise HTTPException(status_code=400, detail="로그아웃 처리 중 오류가 발생했습니다.")
+
