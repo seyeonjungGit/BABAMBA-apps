@@ -31,13 +31,15 @@ def get_session_redis():
     # 3. 변환된 리스트를 넣어줍니다.
     sentinel = Sentinel(
         sentinels,  # <--- 여기가 포인트!
-        socket_timeout=0.5,
+        socket_timeout=10.0,
+        socket_connect_timeout=10.0,
         password=REDIS_PASSWORD
     )
     
     return sentinel.master_for(
         REDIS_MASTER_NAME, 
-        socket_timeout=0.5, 
+        socket_timeout=10.0, 
+        socket_connect_timeout=10.0,
         decode_responses=True,
         password=REDIS_PASSWORD
     )
