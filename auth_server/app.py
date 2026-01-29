@@ -87,10 +87,13 @@ async def login(req: LoginRequest):
     # Redis 세션은 "옵션"
     try:
         r_session = get_session_redis()
-        r_session.setex(f"session:{user.id}", 3600, "active")
+        # r_session이 None이 아닐 때만 실행하도록 체크 추가
+        if r_session:
+            r_session.setex(f"session:{user.id}", 3600, "active")
+        else:
+            print("[WARN] Redis session skipping: Sentinel returned None")
     except Exception as e:
-        # ❗ Redis 없거나 장애 → 로그만
-        print(f"[WARN] Redis session not available: {e}")
+        print(f"[WARN] Redis session error: {e}")
 
     return {'token': token}
 
