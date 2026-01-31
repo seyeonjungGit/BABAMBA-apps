@@ -2,6 +2,7 @@ import os
 import jwt
 import time
 import json
+import logging
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +18,11 @@ from common.models import Employee, EmployeePublic, EmployeesListResponse
 from common.redis_config import get_cache_redis, get_session_redis
 
 app = FastAPI()
+
+# Loki(LogQL)에서 바로 집계하기 쉽게 "duration_ms=" 형태로 남기는 단순 access log
+logger = logging.getLogger("employee.access")
+if not logger.handlers:
+    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
 
 # Prometheus 설정
 Instrumentator().instrument(app).expose(app)
@@ -43,6 +49,26 @@ async def shutdown_event():
 @app.on_event("startup")
 async def on_startup():
     database.create_db_and_tables()
+
+@app.middleware("http")
+async def access_log_with_duration(request, call_next):
+    start = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = getattr(response, "status_code", 200)
+        return response
+    finally:
+        duration_ms = (time.perf_counter() - start) * 1000.0
+        path = getattr(request.url, "path", str(request.url))
+        method = getattr(request, "method", "UNKNOWN")
+        logger.info(
+            "access method=%s path=%s status=%s duration_ms=%.2f",
+            method,
+            path,
+            status_code,
+            duration_ms,
+        )
 
 # [인증] 세션 Redis는 부하테스트 시에도 필수이므로 계속 사용
 async def get_current_user_info(token: str = Depends(oauth2_scheme)):
