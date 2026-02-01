@@ -237,3 +237,8 @@ async def delete_employee_route(employee_id: int, user: dict = Depends(get_curre
         except: pass
     
     return JSONResponse(status_code=200, content={"success": True})
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
