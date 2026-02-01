@@ -124,3 +124,7 @@ async def logout(token: str = Depends(oauth2_scheme)):
         print(f"[ERROR] Logout JWT error: {e}")
         raise HTTPException(status_code=400, detail="로그아웃 처리 중 오류가 발생했습니다.")
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
