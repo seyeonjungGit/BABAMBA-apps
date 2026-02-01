@@ -75,3 +75,7 @@ async def delete_photo(object_key: str):
 
 # The if __name__ == '__main__': block is removed as Uvicorn will run the app directly.
 # Example command to run with Uvicorn: uvicorn app:app --host 0.0.0.0 --port 5003 --reload
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
