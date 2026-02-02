@@ -15,7 +15,9 @@ from common import config
 from common import database
 import util 
 from common.models import Employee, EmployeePublic, EmployeesListResponse 
-from common.redis_config import get_cache_redis, get_session_redis
+
+# Redis 의존성 제거 (필요 시 주석 해제)
+# from common.redis_config import get_cache_redis, get_session_redis
 
 app = FastAPI()
 
@@ -45,7 +47,7 @@ async def shutdown_event():
 async def on_startup():
     database.create_db_and_tables()
 
-# [인증] JWT는 필수, Redis 세션은 옵션
+# [인증] JWT 기반으로만 동작 (Redis 세션 체크 제거)
 async def get_current_user_info(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -54,7 +56,7 @@ async def get_current_user_info(token: str = Depends(oauth2_scheme)):
     )
 
     try:
-        # 1️⃣ JWT 검증 (절대 기준)
+        # JWT 검증 (이제 이것만 확인합니다)
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("user")
         user_id: int = payload.get("id")
@@ -62,17 +64,7 @@ async def get_current_user_info(token: str = Depends(oauth2_scheme)):
         if username is None or user_id is None:
             raise credentials_exception
 
-        # 2️⃣ Redis 세션 체크 (Best Effort)
-        try:
-            r_session = get_session_redis()
-            if not r_session.exists(f"session:{user_id}"):
-                # 로그만 남기고 통과
-                print(f"[WARN] Redis session missing for user_id={user_id}")
-        except Exception as e:
-            # Sentinel 장애 / 네트워크 문제
-            print(f"[WARN] Redis session check failed: {e}")
-
-        # 3️⃣ 정상 통과
+        # --- Redis 세션 체크 부분 삭제됨 ---
         return {"username": username, "id": user_id}
 
     except jwt.ExpiredSignatureError:
@@ -93,23 +85,8 @@ def get_photo_url_for_fastapi(object_key: str):
 async def get_employees(user: dict = Depends(get_current_user_info)):
     start_time = time.time()
     user_id = user["id"]
-    cache_key = f"employees_list_cache:{user_id}"
     
-    # 캐시용 Redis 가져오기 (만약 None이면 캐시 기능 건너뜀)
-    r = get_cache_redis()
-
-    # 1. Redis 캐시 확인
-    if r:
-        try:
-            cached_data = r.get(cache_key)
-            if cached_data:
-                execution_time = (time.time() - start_time) * 1000
-                print(f"🚀 [HIT] Redis Cache for User {user_id}: {execution_time:.2f} ms")
-                return json.loads(cached_data)
-        except Exception as e:
-            print(f"⚠️ Redis Error: {e}")
-
-    # 2. 캐시 없거나 Redis 비활성화 시 DB 조회
+    # Redis 캐시 로직 삭제 -> 바로 DB 조회
     employees: List[Employee] = database.list_employees(owner_id=user_id)
     
     employees_public_data = []
@@ -119,42 +96,18 @@ async def get_employees(user: dict = Depends(get_current_user_info)):
             emp_public.photo_url = get_photo_url_for_fastapi(employee.object_key)
         employees_public_data.append(emp_public)
     
-    # 3. Redis에 결과 저장 (r이 활성화된 경우만)
-    if r:
-        try:
-            r.setex(cache_key, 300, json.dumps([e.dict() for e in employees_public_data]))
-        except Exception as e:
-            print(f"⚠️ Redis Write Error: {e}")
-
     execution_time = (time.time() - start_time) * 1000
-    print(f"🐌 [MISS] DB Query for User {user_id}: {execution_time:.2f} ms")
+    print(f"✅ [DB ONLY] Query for User {user_id}: {execution_time:.2f} ms")
     return employees_public_data
 
 @app.get("/employee/{employee_id}", response_model=EmployeePublic)
 async def get_employee(employee_id: int):
-    start_time = time.time()
-    r = get_cache_redis()
-    cache_key = f"emp_cache:{employee_id}"
-
-    if r:
-        try:
-            cached_emp = r.get(cache_key)
-            if cached_emp:
-                print(f"🚀 [HIT] Redis Cache for ID {employee_id}")
-                return json.loads(cached_emp)
-        except Exception as e:
-            print(f"⚠️ Redis Error: {e}")
-
+    # Redis 캐시 로직 삭제 -> 바로 DB 조회
     employee: Optional[Employee] = database.load_employee(employee_id)
     if employee:
         emp_public = EmployeePublic.from_orm(employee)
         if employee.object_key:
             emp_public.photo_url = get_photo_url_for_fastapi(employee.object_key)
-        
-        if r:
-            try: r.setex(cache_key, 600, json.dumps(emp_public.dict()))
-            except: pass
-            
         return emp_public
     
     raise HTTPException(status_code=404, detail="Employee not found")
@@ -170,10 +123,8 @@ async def save_employee(
     user: dict = Depends(get_current_user_info)
 ):
     user_id = user["id"]
-    r = get_cache_redis()
-    user_list_cache = f"employees_list_cache:{user_id}"
-
     key = None
+
     if photo and photo.filename:
         photo_bytes = await photo.read()
         image_bytes = util.resize_image(BytesIO(photo_bytes), (120, 160))
@@ -200,19 +151,13 @@ async def save_employee(
         
         updated = database.update_employee(employee_id, employee_data)
         if updated:
-            if r:
-                try:
-                    r.delete(f"emp_cache:{employee_id}")
-                    r.delete(user_list_cache)
-                except: pass
+            # Redis 캐시 삭제 로직 제거
             return updated
         raise HTTPException(status_code=404, detail="Employee not found")
     
     else:
         new_emp = database.add_employee(employee_data)
-        if r:
-            try: r.delete(user_list_cache)
-            except: pass
+        # Redis 캐시 삭제 로직 제거
         return new_emp
 
 @app.delete("/employee/{employee_id}")
@@ -228,16 +173,9 @@ async def delete_employee_route(employee_id: int, user: dict = Depends(get_curre
         except: pass
 
     database.delete_employee(employee_id)
-
-    r = get_cache_redis()
-    if r:
-        try:
-            r.delete(f"emp_cache:{employee_id}")
-            r.delete(f"employees_list_cache:{user_id}")
-        except: pass
+    # Redis 캐시 삭제 로직 제거
     
     return JSONResponse(status_code=200, content={"success": True})
-
 
 @app.get("/health")
 def health():
