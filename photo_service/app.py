@@ -16,7 +16,7 @@ Instrumentator().instrument(app).expose(app)
 # ==========================================
 # [설정 로드] 환경변수 읽기
 # ==========================================
-STORAGE_TYPE = os.environ.get("STORAGE_TYPE", "local").lower()  # "s3" 또는 "local"
+STORAGE_TYPE = os.environ.get("STORAGE_TYPE", "local").lower()
 PHOTOS_DIR = "/app/static/uploads"
 
 # AWS S3 설정
@@ -27,10 +27,6 @@ S3_BUCKET_NAME = os.environ.get("AWS_S3_BUCKET")
 
 # 로컬 디렉토리 생성
 os.makedirs(PHOTOS_DIR, exist_ok=True)
-
-# [중요] /static/uploads 경로로 들어오는 요청을 처리하기 위한 설정
-# S3 모드일 때도 기존 경로 형식을 유지하기 위해 mount와 get_photo를 통합 관리합니다.
-app.mount("/static/uploads", StaticFiles(directory=PHOTOS_DIR), name="static_photos")
 
 # S3 클라이언트 생성 함수
 def get_s3_client():
@@ -43,40 +39,13 @@ def get_s3_client():
         region_name=AWS_REGION
     )
 
-@app.post("/upload")
-async def upload_photo(file: UploadFile = File(...)):
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file selected")
+# -------------------------------------------------
+# [변경 포인트 1] 라우터 우선순위 조절
+# mount보다 @app.get을 먼저 정의해야 리다이렉트가 작동합니다.
+# -------------------------------------------------
 
-    file_extension = file.filename.split(".")[-1] if "." in file.filename else "bin"
-    object_key = f"{uuid.uuid4()}.{file_extension}"
-
-    if STORAGE_TYPE == "s3":
-        s3 = get_s3_client()
-        try:
-            s3.upload_fileobj(
-                file.file,
-                S3_BUCKET_NAME,
-                object_key,
-                ExtraArgs={"ContentType": file.content_type}
-            )
-            return JSONResponse(status_code=200, content={"object_key": object_key, "storage": "s3"})
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"S3 Upload Failed: {str(e)}")
-    else:
-        file_path = os.path.join(PHOTOS_DIR, object_key)
-        try:
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-            return JSONResponse(status_code=200, content={"object_key": object_key, "storage": "local"})
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Local Upload Failed: {str(e)}")
-
-# [해결 포인트] 
-# 브라우저가 /photos/파일명 또는 /static/uploads/파일명으로 접근할 때 
-# S3 URL로 리다이렉트 시켜줘야 사진이 보입니다.
+@app.get("/static/uploads/{object_key}")
 @app.get("/photos/{object_key}")
-@app.get("/static/uploads/{object_key}")  # 두 경로 모두 처리
 async def get_photo(object_key: str):
     if STORAGE_TYPE == "s3":
         s3 = get_s3_client()
@@ -87,7 +56,7 @@ async def get_photo(object_key: str):
                 Params={'Bucket': S3_BUCKET_NAME, 'Key': object_key},
                 ExpiresIn=3600
             )
-            # 사진 파일을 직접 주는 대신 S3 주소로 리다이렉트
+            # 사용자를 S3 URL로 리다이렉트 (404 방지)
             return RedirectResponse(url=presigned_url)
         except Exception as e:
             raise HTTPException(status_code=404, detail="Photo not found in S3")
@@ -97,22 +66,6 @@ async def get_photo(object_key: str):
             raise HTTPException(status_code=404, detail="Photo not found")
         return FileResponse(file_path)
 
-@app.delete("/photos/{object_key}")
-async def delete_photo(object_key: str):
-    if STORAGE_TYPE == "s3":
-        s3 = get_s3_client()
-        try:
-            s3.delete_object(Bucket=S3_BUCKET_NAME, Key=object_key)
-            return JSONResponse(status_code=200, content={"message": f"Deleted {object_key} from S3"})
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"S3 Delete Failed: {str(e)}")
-    else:
-        file_path = os.path.join(PHOTOS_DIR, object_key)
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="Photo not found")
-        os.remove(file_path)
-        return JSONResponse(status_code=200, content={"message": f"Deleted {object_key} locally"})
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "storage": STORAGE_TYPE}
+# [변경 포인트 2] S3 모드일 때는 mount를 피하는 것이 안전합니다.
+if STORAGE_TYPE != "s3":
+    app.
