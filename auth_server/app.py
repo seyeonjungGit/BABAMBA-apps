@@ -7,6 +7,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
 # 우리가 만든 db.py와 models.py에서 필요한 것들을 가져옵니다.
+from common import config
 from common.database import get_user_by_username, add_user
 from common.models import User
 from common.redis_config import get_session_redis
@@ -25,7 +26,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SECRET_KEY = 'dev-jwt-secret'
+# Auth/Employee 간 JWT 발급/검증 불일치 방지를 위해 공통 설정을 사용합니다.
+# (환경변수 JWT_SECRET_KEY가 있으면 그 값을 사용하고, 없으면 dev-jwt-secret 기본값)
+SECRET_KEY = config.JWT_SECRET_KEY
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -77,7 +80,7 @@ async def login(req: LoginRequest):
         'id': user.id,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
     }
-    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
     # 2. Redis(Sentinel)에 세션 저장
     r_session = get_session_redis()
@@ -90,7 +93,7 @@ async def login(req: LoginRequest):
 async def logout(token: str = Depends(oauth2_scheme)):
     try:
         # 1. 토큰 해독 (Auth Server의 SECRET_KEY 사용)
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("id")
         
         if user_id is None:
