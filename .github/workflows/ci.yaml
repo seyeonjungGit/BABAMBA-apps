@@ -16,9 +16,9 @@ on:
         type: boolean
         required: false
         default: false
-  schedule:
-    # 매일 새벽 3시(KST) = 18:00(UTC)
-    - cron: '0 18 * * *'
+  # schedule:
+  #   # 매일 새벽 3시(KST) = 18:00(UTC)
+  #   - cron: '0 18 * * *'
 
 env:
   REGISTRY: ghcr.io
