@@ -2,3 +2,4 @@ fastapi
 prometheus-fastapi-instrumentator
 uvicorn
 python-multipart
+boto3
