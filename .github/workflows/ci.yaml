@@ -84,13 +84,19 @@ jobs:
             const add = (name, cond) => { if (cond === 'true') services.push(name); };
 
             if (process.env.FULL_BUILD === 'true') {
-              services.push('auth_server','employee_server','gateway','photo_service','frontend');
+              // NOTE: 운영 배포(GitOps)에서 현재 사용되지 않는 서비스는 CI에서 제외합니다.
+              // - gateway(커스텀 앱): Envoy Gateway(Gateway API)로 대체
+              // - frontend: (현재 GitOps 경로에서 workloads/nginx 배포가 연결되지 않음)
+              services.push('auth_server','employee_server','photo_service');
+              // services.push('gateway');
+              // services.push('frontend');
             } else {
               add('auth_server', process.env.AUTH_CHANGED);
               add('employee_server', process.env.EMPLOYEE_CHANGED);
-              add('gateway', process.env.GATEWAY_CHANGED);
               add('photo_service', process.env.PHOTO_CHANGED);
-              add('frontend', process.env.FRONTEND_CHANGED);
+              // NOTE: 아래 2개 서비스는 CI 파이프라인에서 제외(주석 처리)
+              // add('gateway', process.env.GATEWAY_CHANGED);
+              // add('frontend', process.env.FRONTEND_CHANGED);
             }
 
             const unique = [...new Set(services)];
