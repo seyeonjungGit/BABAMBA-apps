@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const employeeSection = document.getElementById('employee-section');
     const loginForm = document.getElementById('login-form');
     const toggleLink = document.getElementById('toggle-auth-mode');
-    
+
     // 인증 폼 내부 요소
     const authTitle = document.getElementById('auth-title');
     const signupFields = document.getElementById('signup-fields');
@@ -27,10 +27,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let jwtToken = localStorage.getItem('jwtToken');
     let isSignupMode = false;
-    const API_BASE_URL = ''; 
+
+    // ✅ 너희 API 도메인으로 고정 (반드시 https)
+    const API_BASE_URL = 'https://api.yongun.shop';
+
     const DEFAULT_PHOTO_PLACEHOLDER = '/no_photo.png';
 
-    // --- [복구] 토글 기능 ---
+    // 상대경로로 오는 photo_url 보정 (예: /static/uploads/..)
+    function normalizePhotoUrl(photoUrl) {
+        if (!photoUrl) return DEFAULT_PHOTO_PLACEHOLDER;
+        if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) return photoUrl;
+        // photoUrl이 "/static/..." 처럼 시작하면 api 도메인 붙여줌
+        if (photoUrl.startsWith('/')) return `${API_BASE_URL}${photoUrl}`;
+        // 혹시 "static/..." 형태면 슬래시 붙여줌
+        return `${API_BASE_URL}/${photoUrl}`;
+    }
+
+    // --- 토글 기능 ---
     toggleLink.addEventListener('click', () => {
         isSignupMode = !isSignupMode;
         if (isSignupMode) {
@@ -53,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (loggedIn && jwtToken) {
             try {
                 const payload = JSON.parse(atob(jwtToken.split('.')[1]));
-                loggedInUserSpan.textContent = `${payload.user} (ID: ${payload.id})`; 
+                loggedInUserSpan.textContent = `${payload.user} (ID: ${payload.id})`;
                 authSection.style.display = 'none';
                 employeeSection.style.display = 'block';
                 fetchEmployees();
@@ -71,11 +84,16 @@ document.addEventListener('DOMContentLoaded', () => {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         showLoading();
+
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
-        
-        let url = isSignupMode ? `${API_BASE_URL}/api/auth/register` : `${API_BASE_URL}/api/auth/login`;
-        let bodyData = { username, password };
+
+        // ✅ /api 제거: EnvoyGateway 라우팅을 /auth, /employee로 맞추는 방식
+        const url = isSignupMode
+            ? `${API_BASE_URL}/auth/register`
+            : `${API_BASE_URL}/auth/login`;
+
+        const bodyData = { username, password };
         if (isSignupMode) {
             bodyData.full_name = document.getElementById('full_name_reg').value;
             bodyData.email = document.getElementById('email_reg').value;
@@ -87,36 +105,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(bodyData)
             });
-            const data = await response.json();
+
+            const data = await response.json().catch(() => ({}));
+
             if (response.ok) {
                 if (isSignupMode) {
                     showMessage(authMessage, 'Registration successful! Please login.');
-                    toggleLink.click(); 
+                    toggleLink.click();
                 } else {
                     jwtToken = data.token;
                     localStorage.setItem('jwtToken', jwtToken);
                     setAuthUI(true);
                 }
             } else {
-                showMessage(authMessage, data.message || 'Error occurred', true);
+                showMessage(authMessage, data.message || `Error occurred (${response.status})`, true);
             }
         } catch (error) {
             showMessage(authMessage, error.message, true);
-        } finally { hideLoading(); }
+        } finally {
+            hideLoading();
+        }
     });
 
-    // --- 직원 목록 출력 (기존 클래스명 적용) ---
+    // --- 직원 목록 출력 ---
     async function fetchEmployees() {
         showLoading();
         try {
-            const response = await fetch(`${API_BASE_URL}/api/employee/employees`, { headers: getAuthHeaders() });
+            // ✅ /api 제거
+            const response = await fetch(`${API_BASE_URL}/employee/employees`, { headers: getAuthHeaders() });
             if (response.status === 401) return logout();
+
             const employees = await response.json();
             employeeListDiv.innerHTML = '';
+
             employees.forEach(emp => {
                 const empDiv = document.createElement('div');
                 empDiv.className = 'employee-item';
-                const displayPhoto = emp.photo_url || DEFAULT_PHOTO_PLACEHOLDER;
+
+                // ✅ photo_url 상대경로 보정
+                const displayPhoto = normalizePhotoUrl(emp.photo_url);
+
                 empDiv.innerHTML = `
                     <img src="${displayPhoto}" alt="${emp.full_name}" width="120" height="160">
                     <div>
@@ -129,91 +157,123 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 employeeListDiv.appendChild(empDiv);
             });
+
             addEmployeeEventListeners();
-        } catch (error) { console.error(error); }
-        finally { hideLoading(); }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            hideLoading();
+        }
     }
 
     function addEmployeeEventListeners() {
-        // 사용자님의 원래 클래스명(.edit-employee)으로 이벤트 바인딩
         document.querySelectorAll('.edit-employee').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const id = e.target.dataset.id;
-                const response = await fetch(`${API_BASE_URL}/api/employee/employee/${id}`, { headers: getAuthHeaders() });
-                const emp = await response.json();
+
+                // ✅ /api 제거
+                const response = await fetch(`${API_BASE_URL}/employee/employee/${id}`, { headers: getAuthHeaders() });
+                const emp = await response.json().catch(() => ({}));
+
                 if (response.ok) {
                     document.getElementById('employee-id').value = emp.id;
                     document.getElementById('full_name').value = emp.full_name;
                     document.getElementById('location').value = emp.location;
                     document.getElementById('job_title').value = emp.job_title;
-                    photoPreview.src = emp.photo_url || DEFAULT_PHOTO_PLACEHOLDER;
+
+                    // ✅ photo_url 보정
+                    photoPreview.src = normalizePhotoUrl(emp.photo_url);
+
                     cancelEditButton.style.display = 'inline-block';
+                } else {
+                    showMessage(employeeMessage, emp.message || `Failed to load employee (${response.status})`, true);
                 }
             });
         });
+
         document.querySelectorAll('.delete-employee').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 if (!confirm('Delete?')) return;
-                await fetch(`${API_BASE_URL}/api/employee/employee/${e.target.dataset.id}`, { method: 'DELETE', headers: getAuthHeaders() });
+
+                // ✅ /api 제거
+                await fetch(`${API_BASE_URL}/employee/employee/${e.target.dataset.id}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+
                 fetchEmployees();
             });
         });
     }
 
-    // --- 기타 함수 (기본 유지) ---
-  async function logout() {
-    const token = localStorage.getItem('jwtToken');
-    let url = `${API_BASE_URL}/api/auth/logout`;
-    if (token) {
-        try {
-            // 1. 백엔드(Auth Server)에 로그아웃 알림
-            await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-        } catch (error) {
-            console.error("Logout API call failed:", error);
-        }
-    }
+    // --- 로그아웃 ---
+    async function logout() {
+        const token = localStorage.getItem('jwtToken');
+        const url = `${API_BASE_URL}/auth/logout`; // ✅ /api 제거
 
-    // 2. 클라이언트 상태 정리 (API 호출 성공 여부와 상관없이 수행)
-    jwtToken = null;
-    localStorage.removeItem('jwtToken');
-    setAuthUI(false);
-    alert("로그아웃 되었습니다.");
-    location.reload(); // 페이지 새로고침으로 상태 초기화
-}
+        if (token) {
+            try {
+                await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            } catch (error) {
+                console.error("Logout API call failed:", error);
+            }
+        }
+
+        jwtToken = null;
+        localStorage.removeItem('jwtToken');
+        setAuthUI(false);
+        alert("로그아웃 되었습니다.");
+        location.reload();
+    }
 
     function showMessage(el, msg, err) { el.textContent = msg; el.style.color = err ? 'red' : 'green'; }
     function showLoading() { loadingIndicator.style.display = 'block'; }
     function hideLoading() { loadingIndicator.style.display = 'none'; }
     function getAuthHeaders() { return jwtToken ? { 'Authorization': `Bearer ${jwtToken}` } : {}; }
-    function resetEmployeeForm() { 
-        employeeForm.reset(); 
-        document.getElementById('employee-id').value = ''; 
+
+    function resetEmployeeForm() {
+        employeeForm.reset();
+        document.getElementById('employee-id').value = '';
         photoPreview.src = DEFAULT_PHOTO_PLACEHOLDER;
         cancelEditButton.style.display = 'none';
     }
 
-    // 직원 추가/수정 제출
+    // --- 직원 추가/수정 제출 ---
     employeeForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
         const formData = new FormData();
         const id = document.getElementById('employee-id').value;
+
         if (id) formData.append('employee_id', id);
         formData.append('full_name', document.getElementById('full_name').value);
         formData.append('location', document.getElementById('location').value);
         formData.append('job_title', document.getElementById('job_title').value);
-        const badges = Array.from(badgesCheckboxesDiv.querySelectorAll('input:checked')).map(cb => cb.value).join(',');
+
+        const badges = Array.from(badgesCheckboxesDiv.querySelectorAll('input:checked'))
+            .map(cb => cb.value)
+            .join(',');
+
         formData.append('badges', badges);
         if (photoInput.files[0]) formData.append('photo', photoInput.files[0]);
 
-        const response = await fetch(`${API_BASE_URL}/api/employee/employee`, {
-            method: 'POST', headers: getAuthHeaders(), body: formData
+        // ✅ /api 제거
+        const response = await fetch(`${API_BASE_URL}/employee/employee`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: formData
         });
-        if (response.ok) { resetEmployeeForm(); fetchEmployees(); }
+
+        if (response.ok) {
+            resetEmployeeForm();
+            fetchEmployees();
+        } else {
+            const data = await response.json().catch(() => ({}));
+            showMessage(employeeMessage, data.message || `Save failed (${response.status})`, true);
+        }
     });
 
     photoInput.addEventListener('change', (e) => {

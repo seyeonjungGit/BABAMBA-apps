@@ -1,26 +1,35 @@
 import jwt
 import datetime
+import os
+import logging
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from prometheus_fastapi_instrumentator import Instrumentator
-from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
-# 우리가 만든 db.py와 models.py에서 필요한 것들을 가져옵니다.
 from common import config
+# DB 관련 모듈 (기존 파일 유지)
 from common.database import get_user_by_username, add_user
 from common.models import User
-from common.redis_config import get_session_redis
-# 1. 비밀번호 암호화 도구 설정 (bcrypt 알고리즘 사용) ### 
-#pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# 로깅 설정
+logger = logging.getLogger(__name__)
+
 app = FastAPI()
-# 
-# Set up Prometheus instrumentation
+
+# Prometheus 설정
 Instrumentator().instrument(app).expose(app)
+
+# CORS 설정
+origins = [
+    "https://yxngjxe.store",
+    "https://ehanadul.store",
+    "https://yongun.shop"
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,16 +55,12 @@ class RegisterRequest(BaseModel):
 # --- [API 1] 회원가입 (Register) ---
 @app.post('/auth/register')
 async def register(req: RegisterRequest):
-    # 1. 중복 체크 (DB에 이미 이 아이디가 있는지 확인)
+    # 1. 중복 체크
     existing_user = get_user_by_username(req.username)
     if existing_user:
         raise HTTPException(status_code=400, detail="이미 존재하는 아이디입니다.")
 
-    # 2. 비밀번호 해싱 (C++의 암호화 함수 호출과 같습니다)
-    # 사용자가 친 '1234'를 '$2b$12$...' 형태의 암호문으로 바꿉니다.
-    #hashed_password = pwd_context.hash(req.password)
-
-    # 3. DB 객체 생성 및 저장
+    # 2. DB 객체 생성 및 저장 (비밀번호는 현재 평문 저장 방식 유지)
     new_user_data = User(
         username=req.username,
         password=req.password,
@@ -64,17 +69,17 @@ async def register(req: RegisterRequest):
     )
     
     saved_user = add_user(new_user_data)
-    
     return {"message": "회원가입 성공!", "id": saved_user.id}
 
 # --- [API 2] 로그인 (Login) ---
 @app.post('/auth/login')
 async def login(req: LoginRequest):
+    # 1. 사용자 확인
     user = get_user_by_username(req.username)
     if not user or req.password != user.password:
         raise HTTPException(status_code=401, detail="인증 실패")
 
-    # 1. JWT 토큰 발행
+    # 2. JWT 토큰 생성
     payload = {
         'user': user.username,
         'id': user.id,
@@ -82,32 +87,31 @@ async def login(req: LoginRequest):
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-    # 2. Redis(Sentinel)에 세션 저장
-    r_session = get_session_redis()
-    # 유저 ID를 키로 저장 (토큰 유효기간과 동일하게 1시간 설정)
-    r_session.setex(f"session:{user.id}", 3600, "active") 
+    # Redis 세션 저장 로직 삭제 (타임아웃 원인 제거)
+    logger.info(f"[Auth] User {user.username} logged in successfully (JWT only).")
 
     return {'token': token}
 
+# --- [API 3] 로그아웃 (Logout) ---
 @app.post('/auth/logout')
 async def logout(token: str = Depends(oauth2_scheme)):
     try:
-        # 1. 토큰 해독 (Auth Server의 SECRET_KEY 사용)
+        # 토큰 유효성만 검사 (Redis 세션 삭제 로직 제거)
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("id")
-        
+
         if user_id is None:
             raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
 
-        # 2. Redis(Sentinel)에서 세션 삭제
-        r_session = get_session_redis()
-        r_session.delete(f"session:{user_id}")
-        
-        return {"message": "로그아웃 성공!!"}
-        
+        return {"message": "로그아웃 성공"}
+
     except jwt.ExpiredSignatureError:
-        # 이미 만료된 토큰이라도 로그아웃 요청이 들어오면 성공으로 쳐주거나 무시해도 됩니다.
-        return {"message": "이미 만료된 세션입니다."}
-    except (jwt.PyJWTError, Exception) as e:
-        print(f"Logout Error: {e}")
+        return {"message": "이미 만료된 토큰입니다."}
+    except jwt.PyJWTError as e:
+        logger.error(f"[Logout Error] {e}")
         raise HTTPException(status_code=400, detail="로그아웃 처리 중 오류가 발생했습니다.")
+
+# --- [API 4] 헬스체크 ---
+@app.get("/health")
+def health():
+    return {"status": "ok"}

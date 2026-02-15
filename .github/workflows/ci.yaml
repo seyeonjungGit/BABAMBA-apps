@@ -16,9 +16,9 @@ on:
         type: boolean
         required: false
         default: false
-  schedule:
-    # 매일 새벽 3시(KST) = 18:00(UTC)
-    - cron: '0 18 * * *'
+  # schedule:
+  #   # 매일 새벽 3시(KST) = 18:00(UTC)
+  #   - cron: '0 18 * * *'
 
 env:
   REGISTRY: ghcr.io
@@ -62,8 +62,6 @@ jobs:
               - 'gateway/**'
             photo_service:
               - 'photo_service/**'
-            frontend:
-              - 'frontend/**'
             ci:
               - '.github/workflows/**'
 
@@ -114,7 +112,6 @@ jobs:
             echo "- employee_server: **${{ steps.filter.outputs.employee_server }}**"
             echo "- gateway: **${{ steps.filter.outputs.gateway }}**"
             echo "- photo_service: **${{ steps.filter.outputs.photo_service }}**"
-            echo "- frontend: **${{ steps.filter.outputs.frontend }}**"
             echo "- workflows(ci): **${{ steps.filter.outputs.ci }}**"
             echo ""
             echo "## 최종 빌드 대상 서비스"
@@ -207,7 +204,6 @@ jobs:
             employee_server) K8S_DIR="employee" ;;
             gateway) K8S_DIR="gateway" ;;
             photo_service) K8S_DIR="photo" ;;
-            frontend) K8S_DIR="nginx" ;;
             *) echo "알 수 없는 서비스: $SERVICE_NAME" && exit 1 ;;
           esac
           
