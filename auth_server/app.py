@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from prometheus_fastapi_instrumentator import Instrumentator
 from fastapi.security import OAuth2PasswordBearer
-
+from common import config
 # DB 관련 모듈 (기존 파일 유지)
 from common.database import get_user_by_username, add_user
 from common.models import User
@@ -35,8 +35,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# JWT 설정
-SECRET_KEY = 'dev-jwt-secret'
+# Auth/Employee 간 JWT 발급/검증 불일치 방지를 위해 공통 설정을 사용합니다.
+# (환경변수 JWT_SECRET_KEY가 있으면 그 값을 사용하고, 없으면 dev-jwt-secret 기본값)
+SECRET_KEY = config.JWT_SECRET_KEY
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

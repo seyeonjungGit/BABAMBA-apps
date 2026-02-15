@@ -23,6 +23,8 @@ os.makedirs(PHOTOS_DIR, exist_ok=True)
 def get_s3_client():
     if not AWS_ACCESS_KEY or not AWS_SECRET_KEY:
         raise HTTPException(status_code=500, detail="AWS Credentials missing")
+    if not S3_BUCKET_NAME:
+        raise HTTPException(status_code=500, detail="S3 Bucket name missing")
     return boto3.client(
         's3',
         aws_access_key_id=AWS_ACCESS_KEY,
@@ -74,8 +76,12 @@ async def upload_photo(file: UploadFile = File(...)):
 @app.delete("/photos/{object_key}")
 async def delete_photo(object_key: str):
     if STORAGE_TYPE == "s3":
-        get_s3_client().delete_object(Bucket=S3_BUCKET_NAME, Key=object_key)
-        return {"message": "Deleted from S3"}
+        try:
+            s3 = get_s3_client()
+            s3.delete_object(Bucket=S3_BUCKET_NAME, Key=object_key)
+            return {"message": "Deleted from S3"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"S3 Delete Error: {str(e)}")
     else:
         file_path = os.path.join(PHOTOS_DIR, object_key)
         if os.path.exists(file_path):
